@@ -1,0 +1,32 @@
+// Amber-NAR © Karim Vergnes <me@thesola.io>
+// Licensed under GNU GPLv2
+// NARString extraction utility
+
+import { parse_number } from "std/text"
+
+/// Assuming the file descriptor is at the start of a NARString, returns
+/// the length of the NARString leaving the file descriptor at the end of the
+/// length block.
+///
+/// Can be used to skip unwanted NARStrings.
+pub fun read_nar_length(fd: Num = 0): Num?
+{
+    let length_raw = $od -t d8 -N8 -An <&{fd}$?
+
+    return parse_number(length_raw)?
+}
+
+/// Assuming the file descriptor is at the start of a NARString, reads and
+/// returns the value of that NARString leaving the file descriptor at the
+/// start of the next one.
+pub fun read_nar_string(fd: Num = 0): Text?
+{
+    let length = read_nar_length(fd)
+    let padded_length = length
+    let padding = 8 - (length % 8)
+
+    if padding < 8:
+        padded_length += padding
+
+    return $head -c {padded_length} <&{fd} | head -c -{padding}$?
+}
