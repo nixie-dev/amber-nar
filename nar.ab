@@ -4,6 +4,8 @@
 
 import { starts_with } from "std/text"
 
+import { file_download } from "github.com/nixie-dev/amber-http2/http.ab"
+
 import { read_nar_length, read_nar_string } from "./string.ab"
 
 /// Returns the contents of a file within the NAR archive, by path.
