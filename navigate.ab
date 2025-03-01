@@ -2,7 +2,7 @@
 // Licensed under GNU GPLv2
 // High-level NAR navigation tool
 
-import { parse_number } from "std/text"
+import { echo_error } from "std/env"
 
 import { file_stream } from "github.com/nixie-dev/amber-http2/http.ab"
 
@@ -11,34 +11,44 @@ import { get_padded_length, read_nar_string, read_nar_length } from "./string.ab
 /// Advance session struct to the next file, and return its canonical name.
 /// Uses HTTP offsets.
 ///
+/// The idea is that downloading the next offset and length will yield the
+/// contents of the file you are looking for.
+///
 /// ### Session format
 /// The session struct is an array of Text with the following cells in order:
 /// - Current offset in number of bytes
 /// - Length of the next NAR word in number of bytes
 /// - Name of the current directory within the NAR
-pub fun next_file_http(nar: Text, ref session: [Text]): Text
+#[allow_absurd_cast]
+pub fun next_file_http(nar: Text, ref session: [Text]): Text?
 {
-    let offset = trust parse_number(session[0])
-    let length = trust parse_number(session[1])
+    let offset = session[0] as Num
+    let length = session[1] as Num
     let path = session[2]
 
     //TODO: state machine
+
+    fail 1
 
     session = [ "{offset}", "{length}", path ]
 }
 
 /// Advance session struct to next file, and return its canonical name.
 /// Uses UNIX I/O.
-///
-/// The idea is that downloading the next offset and length will yield the
-/// contents of the file you are looking for.
-pub fun next_file_fd(nar: Num, ref session: [Text]): Text
+#[allow_absurd_cast]
+pub fun next_file_fd(nar: Text, ref session: [Text]): Text?
 {
-    let offset = trust parse_number(session[0])
-    let length = trust parse_number(session[1])
+    let offset = session[0] as Num
+    let length = session[1] as Num
     let path = session[2]
 
     // TODO: state machine
+    if offset == 0 {
+        let hdr = read_nar_string(nar)?
+        offset += get_padded_length(len(hdr))
+        if hdr != "nix-archive-1":
+            echo_error("Malformed NAR archive.")
+    }
 
     session = [ "{offset}", "{length}", path ]
 }

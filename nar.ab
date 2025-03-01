@@ -7,18 +7,35 @@ import { is_command, echo_error } from "std/env"
 
 import { file_download, file_stream } from "github.com/nixie-dev/amber-http2/http.ab"
 
+import { next_file_fd, next_file_http } from "./navigate.ab"
 import { read_nar_length, read_nar_string } from "./string.ab"
 
+#[allow_absurd_cast]
 fun cat_file_http(nar: Text, path: Text): Text?
 {
-    echo "Not yet implemented, sorry!"
-    fail 1
+    let session = [ "0", "0", "/" ]
+
+    loop {
+        next_file_http(nar, session)?
+        if session[2] == path {
+            let start = session[0] as Num
+            let length = session[1] as Num
+            return file_stream(nar, start, length)?
+        }
+    }
 }
 
+#[allow_absurd_cast]
 fun cat_file_fd(nar: Text, path: Text): Text?
 {
-    echo "Not yet implemented, sorry!"
-    fail 1
+    let session = [ "0", "0", "/" ]
+
+    loop {
+        next_file_fd(nar, session)?
+        if session[2] == path:
+            let start = session[0] as Num
+            return read_nar_string(nar, start)?
+    }
 }
 
 /// Returns the contents of a file within the NAR archive, by path.
@@ -62,7 +79,7 @@ pub fun cat_file_store(cache: Text, hash: Text, path: Text): Text?
     let tgt = trust $mktemp -t amber_XXXXXXXX.nar$
 
     file_download("{cache}/{narpath}", "{tgt}.{compression}")
-    ${compression} -d {tgt}.{compression} > {tgt}$?
+    ${compression} -d {tgt}.{compression} -c > {tgt}$?
 
     trust $rm {tgt}.{compression}$
     return cat_file(tgt, path)?

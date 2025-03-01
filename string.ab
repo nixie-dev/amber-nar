@@ -20,9 +20,9 @@ pub fun get_padded_length(length: Num): Num
 /// length block.
 ///
 /// Can be used to skip unwanted NARStrings.
-pub fun read_nar_length(fd: Num = 0): Num?
+pub fun read_nar_length(file: Text = "/dev/stdin", offset: Num = 0): Num?
 {
-    let length_raw = $od -t d8 -N8 -An <&{fd}$?
+    let length_raw = $tail -c -{offset} < {file} | od -t d8 -N8 -An$?
 
     return parse_number(length_raw)?
 }
@@ -30,11 +30,11 @@ pub fun read_nar_length(fd: Num = 0): Num?
 /// Assuming the file descriptor is at the start of a NARString, reads and
 /// returns the value of that NARString leaving the file descriptor at the
 /// start of the next one.
-pub fun read_nar_string(fd: Num = 0): Text?
+pub fun read_nar_string(file: Text = "/dev/stdin", offset: Num = 0): Text?
 {
-    let length = read_nar_length(fd)
+    let length = read_nar_length(file, offset)?
     let padded_length = get_padded_length(length)
     let padding = padded_length - length
 
-    return $head -c {padded_length} <&{fd} | head -c -{padding}$?
+    return $tail -c -{offset + 8} < {file} | head -c {length}$?
 }
