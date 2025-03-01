@@ -2,15 +2,86 @@
 // Licensed under GNU GPLv2
 // Main functions for navigating NAR archives
 
-import { starts_with } from "std/text"
+import { starts_with, split, split_lines } from "std/text"
+import { is_command, echo_error } from "std/env"
 
-import { file_download } from "github.com/nixie-dev/amber-http2/http.ab"
+import { file_download, file_stream } from "github.com/nixie-dev/amber-http2/http.ab"
 
 import { read_nar_length, read_nar_string } from "./string.ab"
+
+fun cat_file_http(nar: Text, path: Text): Text?
+{
+    echo "Not yet implemented, sorry!"
+    fail 1
+}
+
+fun cat_file_fd(nar: Text, path: Text): Text?
+{
+    echo "Not yet implemented, sorry!"
+    fail 1
+}
 
 /// Returns the contents of a file within the NAR archive, by path.
 pub fun cat_file(nar: Text, path: Text): Text?
 {
-    echo "Not yet implemented, sorry!"
-    fail 1
+    if starts_with(nar, "http://") or starts_with(nar, "https://") {
+        return cat_file_http(nar, path)?
+    } else {
+        return cat_file_fd(nar, path)?
+    }
+}
+
+/// Returns the contents of a file within the NAR archive for a store path.
+///
+/// ### Arguments
+/// - `cache`: A valid base URL to a Nix cache server
+/// - `hash`: The Nix32 hash to a store path
+/// - `path`: The path within the NAR to fetch
+pub fun cat_file_store(cache: Text, hash: Text, path: Text): Text?
+{
+    let narinfo = file_stream("{cache}/{hash}.narinfo")?
+    let narpath = ""
+    let compression = ""
+
+    for line in split_lines(narinfo) {
+        let keyval = split(line, ":")
+        if keyval[0] == "URL":
+            narpath = keyval[1]
+        if keyval[0] == "Compression":
+            compression = keyval[1]
+    }
+
+    narpath = trust $echo -n \$\{{nameof narpath}//[[:space:]]/}$
+    compression = trust $echo -n \$\{{nameof compression}//[[:space:]]/}$
+
+    if compression == "none":
+        return cat_file("{cache}/{narpath}", path)?
+    if not is_command(compression):
+        echo_error("Missing compression utility {compression}.")
+
+    let tgt = trust $mktemp -t amber_XXXXXXXX.nar$
+
+    file_download("{cache}/{narpath}", "{tgt}.{compression}")
+    ${compression} -d {tgt}.{compression} > {tgt}$?
+
+    trust $rm {tgt}.{compression}$
+    return cat_file(tgt, path)?
+}
+
+main(cmdl)
+{
+    if len(cmdl) < 4 {
+        echo "Usage: ./nar.sh <cache-url> <store-hash> <file-path>"
+        echo "   or: ./nar.sh nar <nar-file> <file-path>"
+        fail 1
+    }
+
+    let cache_url = cmdl[1]
+    let store_hash = cmdl[2]
+    let file_path = cmdl[3]
+
+    if cache_url == "nar":
+        echo cat_file(store_hash, file_path)?
+    else:
+        echo cat_file_store(cache_url, store_hash, file_path)?
 }

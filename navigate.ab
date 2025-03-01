@@ -24,12 +24,21 @@ pub fun next_file_http(nar: Text, ref session: [Text]): Text
 
     //TODO: state machine
 
-    session = [ offset, length, path ]
+    session = [ "{offset}", "{length}", path ]
 }
 
 /// Advance session struct to next file, and return its canonical name.
 /// Uses UNIX I/O.
+///
+/// The idea is that downloading the next offset and length will yield the
+/// contents of the file you are looking for.
 pub fun next_file_fd(nar: Num, ref session: [Text]): Text
 {
-    echo "Not implemented."
+    let offset = trust parse_number(session[0])
+    let length = trust parse_number(session[1])
+    let path = session[2]
+
+    // TODO: state machine
+
+    session = [ "{offset}", "{length}", path ]
 }
